@@ -143,69 +143,68 @@ import org.apache.commons.compress.utils.ArchiveUtils;
  */
 
 public class TarArchiveEntry implements TarConstants, ArchiveEntry {
-    /** The entry's name. */
-    private String name = "";
+    public static class TarArchiveEntryData {
+		/** The entry's name. */
+		public String name;
+		/** Whether to enforce leading slashes on the name */
+		public boolean preserveLeadingSlashes;
+		/** The entry's permission mode. */
+		public int mode;
+		/** The entry's user id. */
+		public long userId;
+		/** The entry's group id. */
+		public long groupId;
+		/** The entry's size. */
+		public long size;
+		/** The entry's modification time. */
+		public long modTime;
+		/** If the header checksum is reasonably correct. */
+		public boolean checkSumOK;
+		/** The entry's link flag. */
+		public byte linkFlag;
+		/** The entry's link name. */
+		public String linkName;
+		/** The entry's magic tag. */
+		public String magic;
+		/** The version of the format */
+		public String version;
+		/** The entry's user name. */
+		public String userName;
+		/** The entry's group name. */
+		public String groupName;
+		/** The entry's major device number. */
+		public int devMajor;
+		/** The entry's minor device number. */
+		public int devMinor;
+		/** If an extension sparse header follows. */
+		public boolean isExtended;
+		/** The entry's real size in case of a sparse file. */
+		public long realSize;
+		/** is this entry a GNU sparse entry using one of the PAX formats? */
+		public boolean paxGNUSparse;
+		/** is this entry a star sparse entry using the PAX header? */
+		public boolean starSparse;
+		/** The entry's file reference */
+		public File file;
 
-    /** Whether to enforce leading slashes on the name */
-    private boolean preserveLeadingSlashes;
+		public TarArchiveEntryData(String name, long userId, long groupId, long size, String linkName, String magic,
+				String version, String groupName, int devMajor, int devMinor) {
+			this.name = name;
+			this.userId = userId;
+			this.groupId = groupId;
+			this.size = size;
+			this.linkName = linkName;
+			this.magic = magic;
+			this.version = version;
+			this.groupName = groupName;
+			this.devMajor = devMajor;
+			this.devMinor = devMinor;
+		}
+	}
 
-    /** The entry's permission mode. */
-    private int mode;
+	private TarArchiveEntryData data = new TarArchiveEntryData("", 0, 0, 0, "", MAGIC_POSIX, VERSION_POSIX, "", 0, 0);
 
-    /** The entry's user id. */
-    private long userId = 0;
-
-    /** The entry's group id. */
-    private long groupId = 0;
-
-    /** The entry's size. */
-    private long size = 0;
-
-    /** The entry's modification time. */
-    private long modTime;
-
-    /** If the header checksum is reasonably correct. */
-    private boolean checkSumOK;
-
-    /** The entry's link flag. */
-    private byte linkFlag;
-
-    /** The entry's link name. */
-    private String linkName = "";
-
-    /** The entry's magic tag. */
-    private String magic = MAGIC_POSIX;
-    /** The version of the format */
-    private String version = VERSION_POSIX;
-
-    /** The entry's user name. */
-    private String userName;
-
-    /** The entry's group name. */
-    private String groupName = "";
-
-    /** The entry's major device number. */
-    private int devMajor = 0;
-
-    /** The entry's minor device number. */
-    private int devMinor = 0;
-
-    /** If an extension sparse header follows. */
-    private boolean isExtended;
-
-    /** The entry's real size in case of a sparse file. */
-    private long realSize;
-
-    /** is this entry a GNU sparse entry using one of the PAX formats? */
-    private boolean paxGNUSparse;
-
-    /** is this entry a star sparse entry using the PAX header? */
-    private boolean starSparse;
-
-    /** The entry's file reference */
-    private final File file;
-
-    /** Maximum length of a user's name in the tar file */
+	/** Maximum length of a user's name in the tar file */
     public static final int MAX_NAMELEN = 31;
 
     /** Default permissions bits for directories */
@@ -227,8 +226,8 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
             user = user.substring(0, MAX_NAMELEN);
         }
 
-        this.userName = user;
-        this.file = null;
+        this.data.userName = user;
+        this.data.file = null;
     }
 
     /**
@@ -254,16 +253,16 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
     public TarArchiveEntry(String name, boolean preserveLeadingSlashes) {
         this();
 
-        this.preserveLeadingSlashes = preserveLeadingSlashes;
+        this.data.preserveLeadingSlashes = preserveLeadingSlashes;
 
         name = normalizeFileName(name, preserveLeadingSlashes);
         boolean isDir = name.endsWith("/");
 
-        this.name = name;
-        this.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;
-        this.linkFlag = isDir ? LF_DIR : LF_NORMAL;
-        this.modTime = new Date().getTime() / MILLIS_PER_SECOND;
-        this.userName = "";
+        this.data.name = name;
+        this.data.mode = isDir ? DEFAULT_DIR_MODE : DEFAULT_FILE_MODE;
+        this.data.linkFlag = isDir ? LF_DIR : LF_NORMAL;
+        this.data.modTime = new Date().getTime() / MILLIS_PER_SECOND;
+        this.data.userName = "";
     }
 
     /**
@@ -288,10 +287,10 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      */
     public TarArchiveEntry(String name, byte linkFlag, boolean preserveLeadingSlashes) {
         this(name, preserveLeadingSlashes);
-        this.linkFlag = linkFlag;
+        this.data.linkFlag = linkFlag;
         if (linkFlag == LF_GNUTYPE_LONGNAME) {
-            magic = MAGIC_GNU;
-            version = VERSION_GNU_SPACE;
+            data.magic = MAGIC_GNU;
+            data.version = VERSION_GNU_SPACE;
         }
     }
 
@@ -315,27 +314,27 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      */
     public TarArchiveEntry(File file, String fileName) {
         String normalizedName = normalizeFileName(fileName, false);
-        this.file = file;
+        this.data.file = file;
 
         if (file.isDirectory()) {
-            this.mode = DEFAULT_DIR_MODE;
-            this.linkFlag = LF_DIR;
+            this.data.mode = DEFAULT_DIR_MODE;
+            this.data.linkFlag = LF_DIR;
 
             int nameLength = normalizedName.length();
             if (nameLength == 0 || normalizedName.charAt(nameLength - 1) != '/') {
-                this.name = normalizedName + "/";
+                this.data.name = normalizedName + "/";
             } else {
-                this.name = normalizedName;
+                this.data.name = normalizedName;
             }
         } else {
-            this.mode = DEFAULT_FILE_MODE;
-            this.linkFlag = LF_NORMAL;
-            this.size = file.length();
-            this.name = normalizedName;
+            this.data.mode = DEFAULT_FILE_MODE;
+            this.data.linkFlag = LF_NORMAL;
+            this.data.size = file.length();
+            this.data.name = normalizedName;
         }
 
-        this.modTime = file.lastModified() / MILLIS_PER_SECOND;
-        this.userName = "";
+        this.data.modTime = file.lastModified() / MILLIS_PER_SECOND;
+        this.data.userName = "";
     }
 
     /**
@@ -420,7 +419,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's name.
      */
     public String getName() {
-        return name;
+        return data.name;
     }
 
     /**
@@ -429,7 +428,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param name This entry's new name.
      */
     public void setName(String name) {
-        this.name = normalizeFileName(name, this.preserveLeadingSlashes);
+        this.data.name = normalizeFileName(name, this.data.preserveLeadingSlashes);
     }
 
     /**
@@ -438,7 +437,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param mode the mode for this entry
      */
     public void setMode(int mode) {
-        this.mode = mode;
+        this.data.mode = mode;
     }
 
     /**
@@ -447,7 +446,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's link name.
      */
     public String getLinkName() {
-        return linkName;
+        return data.linkName;
     }
 
     /**
@@ -458,7 +457,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.1
      */
     public void setLinkName(String link) {
-        this.linkName = link;
+        this.data.linkName = link;
     }
 
     /**
@@ -470,7 +469,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      */
     @Deprecated
     public int getUserId() {
-        return (int) (userId & 0xffffffff);
+        return (int) (data.userId & 0xffffffff);
     }
 
     /**
@@ -489,7 +488,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.10
      */
     public long getLongUserId() {
-        return userId;
+        return data.userId;
     }
 
     /**
@@ -499,7 +498,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.10
      */
     public void setUserId(long userId) {
-        this.userId = userId;
+        this.data.userId = userId;
     }
 
     /**
@@ -511,7 +510,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      */
     @Deprecated
     public int getGroupId() {
-        return (int) (groupId & 0xffffffff);
+        return (int) (data.groupId & 0xffffffff);
     }
 
     /**
@@ -530,7 +529,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's group id.
      */
     public long getLongGroupId() {
-        return groupId;
+        return data.groupId;
     }
 
     /**
@@ -540,7 +539,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param groupId This entry's new group id.
      */
     public void setGroupId(long groupId) {
-        this.groupId = groupId;
+        this.data.groupId = groupId;
     }
 
     /**
@@ -549,7 +548,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's user name.
      */
     public String getUserName() {
-        return userName;
+        return data.userName;
     }
 
     /**
@@ -558,7 +557,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param userName This entry's new user name.
      */
     public void setUserName(String userName) {
-        this.userName = userName;
+        this.data.userName = userName;
     }
 
     /**
@@ -567,7 +566,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's group name.
      */
     public String getGroupName() {
-        return groupName;
+        return data.groupName;
     }
 
     /**
@@ -576,7 +575,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param groupName This entry's new group name.
      */
     public void setGroupName(String groupName) {
-        this.groupName = groupName;
+        this.data.groupName = groupName;
     }
 
     /**
@@ -608,7 +607,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param time This entry's new modification time.
      */
     public void setModTime(long time) {
-        modTime = time / MILLIS_PER_SECOND;
+        data.modTime = time / MILLIS_PER_SECOND;
     }
 
     /**
@@ -617,7 +616,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @param time This entry's new modification time.
      */
     public void setModTime(Date time) {
-        modTime = time.getTime() / MILLIS_PER_SECOND;
+        data.modTime = time.getTime() / MILLIS_PER_SECOND;
     }
 
     /**
@@ -626,7 +625,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return time This entry's new modification time.
      */
     public Date getModTime() {
-        return new Date(modTime * MILLIS_PER_SECOND);
+        return new Date(data.modTime * MILLIS_PER_SECOND);
     }
 
     public Date getLastModifiedDate() {
@@ -641,7 +640,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.5
      */
     public boolean isCheckSumOK() {
-        return checkSumOK;
+        return data.checkSumOK;
     }
 
     /**
@@ -650,7 +649,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's file.
      */
     public File getFile() {
-        return file;
+        return data.file;
     }
 
     /**
@@ -659,7 +658,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's mode.
      */
     public int getMode() {
-        return mode;
+        return data.mode;
     }
 
     /**
@@ -668,7 +667,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's file size.
      */
     public long getSize() {
-        return size;
+        return data.size;
     }
 
     /**
@@ -681,7 +680,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
         if (size < 0){
             throw new IllegalArgumentException("Size is out of range: "+size);
         }
-        this.size = size;
+        this.data.size = size;
     }
 
     /**
@@ -691,7 +690,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.4
      */
     public int getDevMajor() {
-        return devMajor;
+        return data.devMajor;
     }
 
     /**
@@ -706,7 +705,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
             throw new IllegalArgumentException("Major device number is out of "
                                                + "range: " + devNo);
         }
-        this.devMajor = devNo;
+        this.data.devMajor = devNo;
     }
 
     /**
@@ -716,7 +715,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.4
      */
     public int getDevMinor() {
-        return devMinor;
+        return data.devMinor;
     }
 
     /**
@@ -731,7 +730,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
             throw new IllegalArgumentException("Minor device number is out of "
                                                + "range: " + devNo);
         }
-        this.devMinor = devNo;
+        this.data.devMinor = devNo;
     }
 
     /**
@@ -741,7 +740,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return true if an extension oldgnu sparse header follows.
      */
     public boolean isExtended() {
-        return isExtended;
+        return data.isExtended;
     }
 
     /**
@@ -750,7 +749,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return This entry's real file size.
      */
     public long getRealSize() {
-        return realSize;
+        return data.realSize;
     }
 
     /**
@@ -770,7 +769,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.11
      */
     public boolean isOldGNUSparse() {
-        return linkFlag == LF_GNUTYPE_SPARSE;
+        return data.linkFlag == LF_GNUTYPE_SPARSE;
     }
 
     /**
@@ -781,7 +780,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.11
      */
     public boolean isPaxGNUSparse() {
-        return paxGNUSparse;
+        return data.paxGNUSparse;
     }
 
     /**
@@ -791,7 +790,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.11
      */
     public boolean isStarSparse() {
-        return starSparse;
+        return data.starSparse;
     }
 
     /**
@@ -800,7 +799,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return true if this is a long name extension provided by GNU tar
      */
     public boolean isGNULongLinkEntry() {
-        return linkFlag == LF_GNUTYPE_LONGLINK;
+        return data.linkFlag == LF_GNUTYPE_LONGLINK;
     }
 
     /**
@@ -809,7 +808,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return true if this is a long name extension provided by GNU tar
      */
     public boolean isGNULongNameEntry() {
-        return linkFlag == LF_GNUTYPE_LONGNAME;
+        return data.linkFlag == LF_GNUTYPE_LONGNAME;
     }
 
     /**
@@ -821,8 +820,8 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      *
      */
     public boolean isPaxHeader(){
-        return linkFlag == LF_PAX_EXTENDED_HEADER_LC
-            || linkFlag == LF_PAX_EXTENDED_HEADER_UC;
+        return data.linkFlag == LF_PAX_EXTENDED_HEADER_LC
+            || data.linkFlag == LF_PAX_EXTENDED_HEADER_UC;
     }
 
     /**
@@ -833,7 +832,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @since 1.1
      */
     public boolean isGlobalPaxHeader(){
-        return linkFlag == LF_PAX_GLOBAL_EXTENDED_HEADER;
+        return data.linkFlag == LF_PAX_GLOBAL_EXTENDED_HEADER;
     }
 
     /**
@@ -842,11 +841,11 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return True if this entry is a directory.
      */
     public boolean isDirectory() {
-        if (file != null) {
-            return file.isDirectory();
+        if (data.file != null) {
+            return data.file.isDirectory();
         }
 
-        if (linkFlag == LF_DIR) {
+        if (data.linkFlag == LF_DIR) {
             return true;
         }
 
@@ -864,10 +863,10 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a "normal file"
      */
     public boolean isFile() {
-        if (file != null) {
-            return file.isFile();
+        if (data.file != null) {
+            return data.file.isFile();
         }
-        if (linkFlag == LF_OLDNORM || linkFlag == LF_NORMAL) {
+        if (data.linkFlag == LF_OLDNORM || data.linkFlag == LF_NORMAL) {
             return true;
         }
         return !getName().endsWith("/");
@@ -880,7 +879,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a symbolic link
      */
     public boolean isSymbolicLink() {
-        return linkFlag == LF_SYMLINK;
+        return data.linkFlag == LF_SYMLINK;
     }
 
     /**
@@ -890,7 +889,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a link entry
      */
     public boolean isLink() {
-        return linkFlag == LF_LINK;
+        return data.linkFlag == LF_LINK;
     }
 
     /**
@@ -900,7 +899,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a character device
      */
     public boolean isCharacterDevice() {
-        return linkFlag == LF_CHR;
+        return data.linkFlag == LF_CHR;
     }
 
     /**
@@ -910,7 +909,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a block device
      */
     public boolean isBlockDevice() {
-        return linkFlag == LF_BLK;
+        return data.linkFlag == LF_BLK;
     }
 
     /**
@@ -920,7 +919,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return whether this is a FIFO entry
      */
     public boolean isFIFO() {
-        return linkFlag == LF_FIFO;
+        return data.linkFlag == LF_FIFO;
     }
 
     /**
@@ -940,15 +939,15 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
      * @return An array of TarEntry's for this entry's children.
      */
     public TarArchiveEntry[] getDirectoryEntries() {
-        if (file == null || !file.isDirectory()) {
+        if (data.file == null || !data.file.isDirectory()) {
             return new TarArchiveEntry[0];
         }
 
-        String[] list = file.list();
+        String[] list = data.file.list();
         TarArchiveEntry[] result = new TarArchiveEntry[list == null ? 0 : list.length];
 
         for (int i = 0; i < result.length; ++i) {
-            result[i] = new TarArchiveEntry(new File(file, list[i]));
+            result[i] = new TarArchiveEntry(new File(data.file, list[i]));
         }
 
         return result;
@@ -989,15 +988,15 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
                                  boolean starMode) throws IOException {
         int offset = 0;
 
-        offset = TarUtils.formatNameBytes(name, outbuf, offset, NAMELEN,
+        offset = TarUtils.formatNameBytes(data.name, outbuf, offset, NAMELEN,
                                           encoding);
-        offset = writeEntryHeaderField(mode, outbuf, offset, MODELEN, starMode);
-        offset = writeEntryHeaderField(userId, outbuf, offset, UIDLEN,
+        offset = writeEntryHeaderField(data.mode, outbuf, offset, MODELEN, starMode);
+        offset = writeEntryHeaderField(data.userId, outbuf, offset, UIDLEN,
                                        starMode);
-        offset = writeEntryHeaderField(groupId, outbuf, offset, GIDLEN,
+        offset = writeEntryHeaderField(data.groupId, outbuf, offset, GIDLEN,
                                        starMode);
-        offset = writeEntryHeaderField(size, outbuf, offset, SIZELEN, starMode);
-        offset = writeEntryHeaderField(modTime, outbuf, offset, MODTIMELEN,
+        offset = writeEntryHeaderField(data.size, outbuf, offset, SIZELEN, starMode);
+        offset = writeEntryHeaderField(data.modTime, outbuf, offset, MODTIMELEN,
                                        starMode);
 
         int csOffset = offset;
@@ -1006,18 +1005,18 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
             outbuf[offset++] = (byte) ' ';
         }
 
-        outbuf[offset++] = linkFlag;
-        offset = TarUtils.formatNameBytes(linkName, outbuf, offset, NAMELEN,
+        outbuf[offset++] = data.linkFlag;
+        offset = TarUtils.formatNameBytes(data.linkName, outbuf, offset, NAMELEN,
                                           encoding);
-        offset = TarUtils.formatNameBytes(magic, outbuf, offset, MAGICLEN);
-        offset = TarUtils.formatNameBytes(version, outbuf, offset, VERSIONLEN);
-        offset = TarUtils.formatNameBytes(userName, outbuf, offset, UNAMELEN,
+        offset = TarUtils.formatNameBytes(data.magic, outbuf, offset, MAGICLEN);
+        offset = TarUtils.formatNameBytes(data.version, outbuf, offset, VERSIONLEN);
+        offset = TarUtils.formatNameBytes(data.userName, outbuf, offset, UNAMELEN,
                                           encoding);
-        offset = TarUtils.formatNameBytes(groupName, outbuf, offset, GNAMELEN,
+        offset = TarUtils.formatNameBytes(data.groupName, outbuf, offset, GNAMELEN,
                                           encoding);
-        offset = writeEntryHeaderField(devMajor, outbuf, offset, DEVLEN,
+        offset = writeEntryHeaderField(data.devMajor, outbuf, offset, DEVLEN,
                                        starMode);
-        offset = writeEntryHeaderField(devMinor, outbuf, offset, DEVLEN,
+        offset = writeEntryHeaderField(data.devMinor, outbuf, offset, DEVLEN,
                                        starMode);
 
         while (offset < outbuf.length) {
@@ -1081,38 +1080,38 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
         throws IOException {
         int offset = 0;
 
-        name = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)
+        data.name = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)
             : TarUtils.parseName(header, offset, NAMELEN, encoding);
         offset += NAMELEN;
-        mode = (int) TarUtils.parseOctalOrBinary(header, offset, MODELEN);
+        data.mode = (int) TarUtils.parseOctalOrBinary(header, offset, MODELEN);
         offset += MODELEN;
-        userId = (int) TarUtils.parseOctalOrBinary(header, offset, UIDLEN);
+        data.userId = (int) TarUtils.parseOctalOrBinary(header, offset, UIDLEN);
         offset += UIDLEN;
-        groupId = (int) TarUtils.parseOctalOrBinary(header, offset, GIDLEN);
+        data.groupId = (int) TarUtils.parseOctalOrBinary(header, offset, GIDLEN);
         offset += GIDLEN;
-        size = TarUtils.parseOctalOrBinary(header, offset, SIZELEN);
+        data.size = TarUtils.parseOctalOrBinary(header, offset, SIZELEN);
         offset += SIZELEN;
-        modTime = TarUtils.parseOctalOrBinary(header, offset, MODTIMELEN);
+        data.modTime = TarUtils.parseOctalOrBinary(header, offset, MODTIMELEN);
         offset += MODTIMELEN;
-        checkSumOK = TarUtils.verifyCheckSum(header);
+        data.checkSumOK = TarUtils.verifyCheckSum(header);
         offset += CHKSUMLEN;
-        linkFlag = header[offset++];
-        linkName = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)
+        data.linkFlag = header[offset++];
+        data.linkName = oldStyle ? TarUtils.parseName(header, offset, NAMELEN)
             : TarUtils.parseName(header, offset, NAMELEN, encoding);
         offset += NAMELEN;
-        magic = TarUtils.parseName(header, offset, MAGICLEN);
+        data.magic = TarUtils.parseName(header, offset, MAGICLEN);
         offset += MAGICLEN;
-        version = TarUtils.parseName(header, offset, VERSIONLEN);
+        data.version = TarUtils.parseName(header, offset, VERSIONLEN);
         offset += VERSIONLEN;
-        userName = oldStyle ? TarUtils.parseName(header, offset, UNAMELEN)
+        data.userName = oldStyle ? TarUtils.parseName(header, offset, UNAMELEN)
             : TarUtils.parseName(header, offset, UNAMELEN, encoding);
         offset += UNAMELEN;
-        groupName = oldStyle ? TarUtils.parseName(header, offset, GNAMELEN)
+        data.groupName = oldStyle ? TarUtils.parseName(header, offset, GNAMELEN)
             : TarUtils.parseName(header, offset, GNAMELEN, encoding);
         offset += GNAMELEN;
-        devMajor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);
+        data.devMajor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);
         offset += DEVLEN;
-        devMinor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);
+        data.devMinor = (int) TarUtils.parseOctalOrBinary(header, offset, DEVLEN);
         offset += DEVLEN;
 
         int type = evaluateType(header);
@@ -1124,9 +1123,9 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
             offset += LONGNAMESLEN_GNU;
             offset += PAD2LEN_GNU;
             offset += SPARSELEN_GNU;
-            isExtended = TarUtils.parseBoolean(header, offset);
+            data.isExtended = TarUtils.parseBoolean(header, offset);
             offset += ISEXTENDEDLEN_GNU;
-            realSize = TarUtils.parseOctal(header, offset, REALSIZELEN_GNU);
+            data.realSize = TarUtils.parseOctal(header, offset, REALSIZELEN_GNU);
             offset += REALSIZELEN_GNU;
             break;
         }
@@ -1135,7 +1134,7 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
                 ? TarUtils.parseName(header, offset, PREFIXLEN_XSTAR)
                 : TarUtils.parseName(header, offset, PREFIXLEN_XSTAR, encoding);
             if (xstarPrefix.length() > 0) {
-                name = xstarPrefix + "/" + name;
+                data.name = xstarPrefix + "/" + data.name;
             }
             break;
         }
@@ -1146,11 +1145,11 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
                 : TarUtils.parseName(header, offset, PREFIXLEN, encoding);
             // SunOS tar -E does not add / to directory names, so fix
             // up to be consistent
-            if (isDirectory() && !name.endsWith("/")){
-                name = name + "/";
+            if (isDirectory() && !data.name.endsWith("/")){
+                data.name = data.name + "/";
             }
             if (prefix.length() > 0){
-                name = prefix + "/" + name;
+                data.name = prefix + "/" + data.name;
             }
         }
         }
@@ -1220,24 +1219,24 @@ public class TarArchiveEntry implements TarConstants, ArchiveEntry {
     }
 
     void fillGNUSparse0xData(Map<String, String> headers) {
-        paxGNUSparse = true;
-        realSize = Integer.parseInt(headers.get("GNU.sparse.size"));
+        data.paxGNUSparse = true;
+        data.realSize = Integer.parseInt(headers.get("GNU.sparse.size"));
         if (headers.containsKey("GNU.sparse.name")) {
             // version 0.1
-            name = headers.get("GNU.sparse.name");
+            data.name = headers.get("GNU.sparse.name");
         }
     }
 
     void fillGNUSparse1xData(Map<String, String> headers) {
-        paxGNUSparse = true;
-        realSize = Integer.parseInt(headers.get("GNU.sparse.realsize"));
-        name = headers.get("GNU.sparse.name");
+        data.paxGNUSparse = true;
+        data.realSize = Integer.parseInt(headers.get("GNU.sparse.realsize"));
+        data.name = headers.get("GNU.sparse.name");
     }
 
     void fillStarSparseData(Map<String, String> headers) {
-        starSparse = true;
+        data.starSparse = true;
         if (headers.containsKey("SCHILY.realsize")) {
-            realSize = Long.parseLong(headers.get("SCHILY.realsize"));
+            data.realSize = Long.parseLong(headers.get("SCHILY.realsize"));
         }
     }
 }
